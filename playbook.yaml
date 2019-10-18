@@ -1,0 +1,123 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Save dockerd configuration for k8s
+      shell: |
+        mkdir -p /etc/docker
+
+        cat > /etc/docker/daemon.json <<EOF
+        {
+          "exec-opts": ["native.cgroupdriver=systemd"],
+          "log-driver": "json-file",
+          "log-opts": {
+            "max-size": "100m"
+          },
+          "storage-driver": "overlay2"
+        }
+        EOF
+
+        mkdir -p /etc/systemd/system/docker.service.d
+
+    - name: Update APT cache directly
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Preliminary installation
+      apt:
+        name: "{{ packages }}"
+        state: present
+        force: yes
+      vars:
+        packages:
+          - apt-transport-https
+          - curl
+          - nano
+          - htop
+          - docker.io
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Ensure docker daemon is enabled
+      systemd:
+        name: docker
+        enabled: yes
+        masked: no
+
+    - name: Add the Google signing key
+      apt_key: 
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add the k8s APT repo
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        update_cache: yes
+
+    - name: Install k8s
+      apt:
+        name: "{{ packages }}"
+        state: present
+        force: yes
+      vars:
+        packages:
+          - kubelet
+          - kubeadm
+          - kubectl
+          - kubernetes-cni
+
+- hosts: master
+  tasks:
+    - name: Init K8s
+      become: yes
+      shell: |
+        if [ ! -f /etc/kubernetes/kubelet.conf ]; then
+          echo 'KUBELET_EXTRA_ARGS=--node-ip={{ hostvars[inventory_hostname].ansible_host }}' > /etc/default/kubelet
+
+          kubeadm init \
+            --apiserver-advertise-address={{ hostvars[inventory_hostname].ansible_host }} \
+            --pod-network-cidr=10.244.0.0/16 \
+            --token=qxa3tz.tusy3ry92xc24299 \
+            --token-ttl=0
+        fi
+
+    - name: Configure kubctl for vagrant user
+      shell: |
+        mkdir -p /home/vagrant/.kube
+        sudo cp /etc/kubernetes/admin.conf /home/vagrant/.kube/config
+        sudo chown vagrant:vagrant /home/vagrant/.kube/config
+
+    - name: Wait for k8s ready to accept requests
+      wait_for:
+        port: 6443
+
+    - name: Init flannel CNI
+      shell: |
+        # It is very important for Virtualbox to specify network interface:
+        # --iface=enp0s8
+        # Virtualbox has two network interfaces.
+        # flannel will bind wrong one without this setting.
+        kubectl apply -f /vagrant/flannel/deploy.yaml
+
+    - name: Grab kubectl config
+      fetch:
+        src: /home/vagrant/.kube/config
+        dest: /home/vagrant/.kube/
+        flat: yes
+
+- hosts: slaves
+  tasks:
+    - name: Init K8s
+      become: yes
+      shell: |
+        if [ ! -f /etc/kubernetes/kubelet.conf ]; then
+          echo 'KUBELET_EXTRA_ARGS=--node-ip={{ hostvars[inventory_hostname].ansible_host }}' > /etc/default/kubelet
+
+          kubeadm join {{ hostvars[groups['master'][0]].ansible_host }}:6443 \
+            --token qxa3tz.tusy3ry92xc24299 \
+            --discovery-token-unsafe-skip-ca-verification
+        fi

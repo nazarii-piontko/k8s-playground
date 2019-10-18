@@ -1,0 +1,5 @@
+usePassword: false
+persistence:
+  enabled: false
+metrics:
+  enabled: true

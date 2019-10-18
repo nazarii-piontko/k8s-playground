@@ -1,0 +1,65 @@
+---
+# TODO: this section is not re-enterable, shell scripts must be more generic, using k8s and helm ansible modules.
+- hosts: 127.0.0.1
+  connection: local
+  tasks:
+    - name: Add the Google signing key
+      become: yes
+      apt_key: 
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+    - name: Add the k8s APT repo
+      become: yes
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        update_cache: yes
+    - name: Install kubectl
+      become: yes
+      apt:
+        name: kubectl
+        state: present
+        force: yes
+    - name: Install Helm
+      shell: |
+        wget -q -O helm.tar.gz https://get.helm.sh/helm-canary-linux-amd64.tar.gz
+        tar -xzf helm.tar.gz
+        sudo mv linux-amd64/helm /usr/local/bin/helm
+        sudo chmod +x /usr/local/bin/helm
+        rm -rf helm.tar.gz linux-amd64
+    - name: Init Helm
+      shell: |
+        kubectl -n kube-system create serviceaccount tiller
+        kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
+        helm init --service-account tiller --upgrade --wait
+    - name: Deploy Metallb via Helm
+      shell: |
+        helm install --wait --atomic \
+          --name metallb \
+          -f /vagrant/values/metallb.yaml \
+          stable/metallb
+    - name: Deploy NGINX Ingress via Helm
+      shell: |
+        helm install --wait --atomic \
+          --name nginx \
+          stable/nginx-ingress
+    - name: Deploy Prometheus operator via Helm
+      shell: |
+        helm install --wait --atomic \
+          --name prometheus-operator \
+          -f /vagrant/values/prometheus.yaml \
+          stable/prometheus-operator
+    - name: Deploy MongoDB via Helm
+      shell: |
+        helm install --wait --atomic \
+          --name mongodb \
+          -f /vagrant/values/mongodb.yaml \
+          stable/mongodb
+    - name: Deploy REST API
+      shell: |
+        # Executable files provided as ConfigMap for sake of simplicity
+        kubectl create configmap rest-api \
+          --from-file=/vagrant/rest-api/rest.sh \
+          --from-file=/vagrant/rest-api/rest.py
+        
+        kubectl apply -f /vagrant/rest-api/rest.yaml

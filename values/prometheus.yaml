@@ -1,0 +1,15 @@
+prometheus:
+  ingress:
+    enabled: true
+    hosts:
+      - prometheus.k8s.local
+    paths:
+      - /
+grafana:
+  enabled: true
+  adminPassword: admin
+  defaultDashboardsEnabled: true
+  ingress:
+    enabled: true
+    hosts:
+      - grafana.k8s.local
