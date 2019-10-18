@@ -9,7 +9,7 @@ Here I'm tring play around with _Kuberenets_ on _Vagrant_ virtual machines (_Vir
     * _Vagrant_ (https://www.vagrantup.com/downloads.html)
     * _Git_
 * Open command line, select directory and execute:
-    * ```git clone https://github.com/repo```
+    * ```git clone https://github.com/nazarii-piontko/test-k8s-playground.git```
     * ```cd test-k8s-playground```
     * ```vagrant up```
 * Wait untill it finish.
