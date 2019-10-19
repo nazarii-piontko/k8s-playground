@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 hosts = {
-    "n0" => { "ip" => "192.168.77.10", "netmask" => "255.255.255.0", "cpus" => 2, "memory" => 2048 },
+    "n0" => { "ip" => "192.168.77.10", "ip2" => "192.168.80.10", "netmask" => "255.255.255.0", "cpus" => 2, "memory" => 2048 },
     "n1" => { "ip" => "192.168.77.11", "netmask" => "255.255.255.0", "cpus" => 2, "memory" => 2048 },
     "n2" => { "ip" => "192.168.77.12", "netmask" => "255.255.255.0", "cpus" => 1, "memory" => 1024 },
     "n3" => { "ip" => "192.168.77.13", "netmask" => "255.255.255.0", "cpus" => 1, "memory" => 1024 }
@@ -20,6 +20,9 @@ Vagrant.configure("2") do |config|
     hosts.each do |name, data|
         config.vm.define name do |m|
             m.vm.network :private_network, ip: data["ip"], netmask: data["netmask"]
+            if data.key?("ip2")
+                m.vm.network :private_network, ip: data["ip2"], netmask: data["netmask"]
+            end
             m.vm.hostname = name
             m.vm.provider "virtualbox" do |v|
                 v.name = name

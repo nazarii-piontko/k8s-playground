@@ -14,9 +14,9 @@ Here I'm tring play around with _Kuberenets_ on _Vagrant_ virtual machines (_Vir
     * ```vagrant up```
 * Wait untill it finish.
 * Add the following into your hosts file (```/etc/hosts``` or ```c:\Windows\System32\Drivers\etc\hosts```):
-    * ```192.168.77.12 prometheus.k8s.local```
-    * ```192.168.77.12 grafana.k8s.local```
-    * ```192.168.77.12 api.k8s.local```
+    * ```192.168.80.10 prometheus.k8s.local```
+    * ```192.168.80.10 grafana.k8s.local```
+    * ```192.168.80.10 api.k8s.local```
 
 ## What you get
 
